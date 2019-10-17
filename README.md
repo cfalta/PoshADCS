@@ -6,7 +6,7 @@ PoshADCS is the result of my current research in finding attack paths against an
 
 Active Directory integrated Certificate Authorities (Enterprise CAs) store a part of their configuration in Active Directory. Espescially of interest are the so called "Certificate Templates".
 Certificate templates are used by clients als well as by the CA to determine how to populate the fields in a certificate request as well as the resulting certificate. Usually there are a couple of published certificate templates in any organization that uses an AD integrated CA.
-If an attacker gains write access (Write and Enroll or WriteDACL) on any of these templates (e.g. through a service account) it is possible to "rewrite" any template so the attacker can enroll a smart card certificate for arbitrary users (domain admin) and then impersonate that users.
+If an attacker gains write access (Write and Enroll or WriteDACL) on any of these templates (e.g. through a service account) it is possible to "rewrite" any template so the attacker can enroll a smart card certificate for arbitrary users (e.g. domain admin) and then impersonate that user.
 This can be used as an ACL-based backdoor as well as an offensive attack vector.
 
 ## What's ADCS?
@@ -53,7 +53,7 @@ If smartcards are currently not in use in the target environment, the attack wil
 
 * The certificate of the Enterprise CA issuing the smartcard certificate needs to be present under "CN=NtAuthCertificates, CN=Public Key Services, CN=Services, CN=Configuration, DC=domain, dc=com". This is done automatically during setup of the CA, so it shouldn't be a problem.
 * You obviously need a smartcard. This can be a physical smartcard, however bringing a real smartcard implies the need of physical access, which can be a challenge. Luckily, there's a solution called "virtual smartcard". More on that later.
-* The domain controller(s) need's a certificate issued from one of the following templates: Domain Controller, Domain Controller Authentication, Kerberos Authentication. This is propably the only crucial requirement that might not be met. However if there is an enterprise CA and auto enrollment enabled, from my experience it is very likely that the domain controllers already got the certificate automatically.
+* The domain controller(s) need's a certificate issued from one of the following templates: Domain Controller, Domain Controller Authentication, Kerberos Authentication. This is probably the only crucial requirement that might not be met. However if there is an enterprise CA and auto enrollment enabled, from my experience it is very likely that the domain controllers already got the certificate automatically.
 
 ## Virtual smartcards to the rescue
 
