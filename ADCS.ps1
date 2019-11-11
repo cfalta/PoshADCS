@@ -336,12 +336,13 @@ foreach($acl in $TemplatesACL)
     $acl | Add-Member -MemberType NoteProperty -Name Identity -Value (Convert-SidToName $acl.SecurityIdentifier)
 }
 
-
-switch($filter)
+if($Filter -eq "AdminACEs")
 {
-    AdminACEs:{ $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9")) } }
-
-    DefaultACEs:{ $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9") -or ($_.SecurityIdentifier.value -eq "S-1-5-11") -or ($_.SecurityIdentifier.value -like "*-513") -or ($_.SecurityIdentifier.value -like "*-515") -or ($_.SecurityIdentifier.value -like "*-553")) } }
+    $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9")) }
+}
+if($Filter -eq "DefaultACEs")
+{
+    $TemplatesACL = $TemplatesACL | ? { -not (($_.SecurityIdentifier.value -like "*-512") -or ($_.SecurityIdentifier.value -like "*-519") -or ($_.SecurityIdentifier.value -like "*-516") -or ($_.SecurityIdentifier.value -like "*-500") -or ($_.SecurityIdentifier.value -like "*-498") -or ($_.SecurityIdentifier.value -eq "S-1-5-9") -or ($_.SecurityIdentifier.value -eq "S-1-5-11") -or ($_.SecurityIdentifier.value -like "*-513") -or ($_.SecurityIdentifier.value -like "*-515") -or ($_.SecurityIdentifier.value -like "*-553")) } 
 }
 
 $TemplatesACL
