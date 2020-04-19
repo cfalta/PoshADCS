@@ -35,6 +35,42 @@ https://github.com/cfalta/PoshADCS
     $DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
     $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
     $EnterpriseCA = Get-DomainObject -SearchBase ("CN=Enrollment Services," + $BasePath) -LDAPFilter "(objectclass=pKIEnrollmentService)"
+    $NTAuthStore = Get-DomainObject -SearchBase ("CN=NTAuthCertificates," + $BasePath) -LDAPFilter "(objectclass=certificationAuthority)"
+ 
+    if($NTAuthStore.cacertificate.gettype().name -eq "Byte[]")
+    {
+        $RefCerts = @(,$NTAuthStore.cacertificate)
+    }
+    else {
+        $RefCerts = new-object 'Object[]' $Ntauthstore.cacertificate.Count
+        $NTAuthStore.cacertificate.CopyTo($RefCerts,0)
+    }
+
+    foreach($CA in $EnterpriseCA)
+    {
+        $CA | Add-Member -MemberType NoteProperty -Name NTAuthCertificates -Value $false
+        
+        if($CA.cacertificate.gettype().name -eq "Byte[]")
+        {
+            $CACerts = @(,$CA.cacertificate)
+        }
+        else {
+            $CACerts = new-object 'Object[]' $CA.cacertificate.Count
+            $CA.cacertificate.CopyTo($CACerts,0)
+        }
+    
+        foreach($cert in $CACerts)
+        {
+            foreach($refcert in $RefCerts)
+            {
+                if(([Convert]::ToBase64String($cert)) -eq ([Convert]::ToBase64String($refcert)))
+                {
+                    $CA.NTAuthCertificates = $true
+                }
+            }
+        }
+    }
+    
     $EnterpriseCA
 }
 
@@ -542,7 +578,7 @@ Instructs the script to translate the flag attributes to human readable values.
 
 .PARAMETER IncludeACL
 
-Includes the ACLs as of the template in the returned template object.
+Includes the ACLs of the template in the returned template object.
 
 .EXAMPLE
 
@@ -601,6 +637,31 @@ if ($PSBoundParameters['Raw']) { $SearcherArguments['Raw'] = $Raw }
 
 $Templates = Get-DomainObject @SearcherArguments
 
+$RefOidDCAuthTemplate = @("1.3.6.1.5.5.7.3.2", "1.3.6.1.5.5.7.3.1", "1.3.6.1.4.1.311.20.2.2")
+$RefOidKerbAuthTemplate = @("1.3.6.1.5.5.7.3.2", "1.3.6.1.5.5.7.3.1", "1.3.6.1.4.1.311.20.2.2", "1.3.6.1.5.2.3.5")
+
+foreach($t in $Templates)
+{
+    $t | Add-Member -MemberType NoteProperty -Name DCAuthCert -Value $False 
+
+    if($t.pkiextendedkeyusage)
+    {
+         if($t.pkiextendedkeyusage.gettype().name -eq "String")
+        {
+            $keyusage = @(,$t.pkiextendedkeyusage)
+        }
+        else
+        {
+            $keyusage = new-object 'Object[]' $t.pkiextendedkeyusage.Count
+            $t.pkiextendedkeyusage.CopyTo($keyusage,0)
+        }
+    
+        if((-not (compare-object $keyusage $RefOidDCAuthTemplate)) -or (-not (Compare-Object $keyusage $RefOidKerbAuthTemplate)))
+        {
+            $t.DCAuthCert = $True
+        }
+    }
+}
 
 if($IncludeACL)
 {
