@@ -12,7 +12,7 @@ Author: Christoph Falta (@cfalta)
 https://github.com/cfalta/PoshADCS
 
 #>
-    $DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
+    $DomainName = "DC=" + (((Get-Forest).Name).Replace(".",",DC="))
     $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
     $RootCA =  Get-DomainObject -SearchBase ("CN=Certification Authorities," + $BasePath) -LDAPFilter "(objectclass=certificationAuthority)"
     $RootCA
@@ -32,7 +32,7 @@ Author: Christoph Falta (@cfalta)
 https://github.com/cfalta/PoshADCS
 
 #>
-    $DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
+    $DomainName = "DC=" + (((Get-Forest).Name).Replace(".",",DC="))
     $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
     $EnterpriseCA = Get-DomainObject -SearchBase ("CN=Enrollment Services," + $BasePath) -LDAPFilter "(objectclass=pKIEnrollmentService)"
     $NTAuthStore = Get-DomainObject -SearchBase ("CN=NTAuthCertificates," + $BasePath) -LDAPFilter "(objectclass=certificationAuthority)"
@@ -531,7 +531,7 @@ https://github.com/cfalta/PoshADCS
         $Filter)
         
 
-$DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
+$DomainName = "DC=" + (((Get-Forest).Name).Replace(".",",DC="))
 $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
 
 $SearcherArguments = @{"SearchBase"=("CN=Certificate Templates," + $BasePath)}
@@ -627,7 +627,7 @@ https://github.com/cfalta/PoshADCS
         $Raw
     )
 
-$DomainName = "DC=" + (((Get-Domain).Name).Replace(".",",DC="))
+$DomainName = "DC=" + (((Get-Forest).Name).Replace(".",",DC="))
 $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
 
 $SearcherArguments = @{"SearchBase"=("CN=Certificate Templates," + $BasePath)}
@@ -764,7 +764,7 @@ https://github.com/cfalta/PoshADCS
 
         )
 
-$Domain = (Get-Domain).Name    
+$Domain = (Get-Forest).Name    
 $DomainName = "DC=" + $Domain.Replace(".",",DC=")
 $BasePath = "CN=Public Key Services,CN=Services,CN=Configuration" + "," + $DomainName
 
